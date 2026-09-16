@@ -221,10 +221,16 @@ PC에서는 입력 영역과 추천 결과를 동시에 볼 수 있고, 모바�
 
 - `item_id`
 - `source_mode`
+- `intermediate_mode`: 중간재인 경우 `MAKE`, `BUY`, `CHEAPEST`
 - `owned_quantity`
 - `purchase_pack_quantity`
 - `purchase_pack_price`
 - `observed_at`
+
+### `catalog_cache`
+
+- 마지막으로 정상 조회한 게시 카탈로그와 가격 주기
+- 캐시 생성 시각과 서버 데이터 버전
 
 ### `favorites`
 
@@ -368,4 +374,3 @@ purchase_roi = net_profit / consumed_purchase_cost × 100
 - 관리자 이외의 사용자는 서버 데이터를 변경할 수 없다.
 - PC와 390px 모바일에서 핵심 Playwright 흐름이 통과한다.
 - 사용자 로컬 데이터 내보내기와 가져오기가 왕복 후 동일한 값을 복원한다.
-
