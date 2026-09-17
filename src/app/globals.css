@@ -1,0 +1,17 @@
+:root {
+  --primary: #496b57;
+  --primary-foreground: #ffffff;
+  --secondary: #c65a46;
+  --secondary-foreground: #ffffff;
+  --background: #faf7f2;
+  --foreground: #2d2925;
+  --surface: #ffffff;
+  --border: #e7ded3;
+  --muted: #6c665f;
+  --warning: #9a6816;
+  --danger: #963c36;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--background); color: var(--foreground); }
+button, input, select { font: inherit; }
