@@ -20,3 +20,28 @@ export interface PurchaseCostResult {
   unitPrice: number | null
   errors: string[]
 }
+
+export interface Item {
+  id: string
+  slug: string
+  name: string
+  category: 'RAW' | 'PROCESSED' | 'DISH' | 'FIXED_INGREDIENT'
+  tradeable: boolean
+}
+
+export interface RecipeIngredient {
+  itemId: string
+  quantity: number
+}
+
+export interface Recipe {
+  id: string
+  outputItemId: string
+  outputQuantity: number
+  ingredients: RecipeIngredient[]
+}
+
+export interface Catalog {
+  items: Item[]
+  recipes: Recipe[]
+}
