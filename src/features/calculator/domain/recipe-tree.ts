@@ -125,6 +125,12 @@ function expandMake(
   if (!Number.isFinite(recipe.outputQuantity) || recipe.outputQuantity <= 0) {
     return invalidResult(itemId, requestedQuantity, 'MAKE', `INVALID_RECIPE_OUTPUT:${recipe.id}`)
   }
+  if (
+    recipe.ingredients.length === 0
+    || recipe.ingredients.some((ingredient) => !Number.isFinite(ingredient.quantity) || ingredient.quantity <= 0)
+  ) {
+    return invalidResult(itemId, requestedQuantity, 'MAKE', `INVALID_RECIPE:${recipe.id}`)
+  }
 
   const batches = Math.ceil(requestedQuantity / recipe.outputQuantity)
   if (!Number.isFinite(batches) || batches < 0) {

@@ -95,6 +95,35 @@ describe('expandRecipe', () => {
     expect(result.tree).toMatchObject({ itemId: 'tomato-base', strategy: 'CHEAPEST', cost: null })
   })
 
+  it('rejects a recipe with no ingredients instead of treating it as free', () => {
+    const result = expandRecipe('tomato-base', 1, {
+      items,
+      recipes: [{ ...tomatoBaseRecipe, id: 'empty-recipe', ingredients: [] }],
+    }, settings())
+
+    expect(result.leaves).toEqual([])
+    expect(result.tree).toMatchObject({ itemId: 'tomato-base', strategy: 'MAKE', cost: null })
+    expect(result.errors).toEqual(['INVALID_RECIPE:empty-recipe'])
+  })
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects recipe ingredient quantity %p',
+    (quantity) => {
+      const result = expandRecipe('tomato-base', 1, {
+        items,
+        recipes: [{
+          ...tomatoBaseRecipe,
+          id: 'invalid-quantity-recipe',
+          ingredients: [{ itemId: 'tomato', quantity }],
+        }],
+      }, settings({ itemId: 'tomato', sourceMode: 'SELF', ownedQuantity: 0 }))
+
+      expect(result.leaves).toEqual([])
+      expect(result.tree).toMatchObject({ itemId: 'tomato-base', strategy: 'MAKE', cost: null })
+      expect(result.errors).toEqual(['INVALID_RECIPE:invalid-quantity-recipe'])
+    },
+  )
+
   it('throws RecipeCycleError for a recipe cycle', () => {
     const catalog: Catalog = {
       items: [
