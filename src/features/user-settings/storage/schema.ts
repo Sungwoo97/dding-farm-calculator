@@ -46,8 +46,16 @@ function isJsonValue(value: unknown, ancestors = new Set<object>()): value is Js
   if (Array.isArray(value)) {
     ancestors.add(value)
     let valid = true
+    const enumerableKeys = Reflect.ownKeys(value).filter((key) =>
+      Object.prototype.propertyIsEnumerable.call(value, key),
+    )
+    if (enumerableKeys.length !== value.length) valid = false
     for (let index = 0; index < value.length; index += 1) {
-      if (!Object.prototype.hasOwnProperty.call(value, index) || !isJsonValue(value[index], ancestors)) {
+      if (
+        enumerableKeys[index] !== String(index) ||
+        !Object.prototype.hasOwnProperty.call(value, index) ||
+        !isJsonValue(value[index], ancestors)
+      ) {
         valid = false
         break
       }

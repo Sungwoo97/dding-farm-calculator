@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   defaultUserProfile,
   userSettingsRepository,
 } from './repository'
 import { exportUserData, importUserData } from './export'
+import { dbPromise } from './db'
 import type { UserDataExport } from './schema'
 
 const exportedData = {
@@ -37,6 +38,10 @@ function sparseArray(): string[] {
   const values = [] as string[]
   values[1] = 'second item'
   return values
+}
+
+function decoratedArray(metadata: unknown): number[] {
+  return Object.assign([1], { metadata }) as number[]
 }
 
 describe('user data transfer', () => {
@@ -108,6 +113,8 @@ describe('user data transfer', () => {
     ['BigInt', BigInt(1)],
     ['function', () => undefined],
     ['sparse array', sparseArray()],
+    ['decorated array with primitive metadata', decoratedArray('retained')],
+    ['decorated array with function metadata', decoratedArray(() => undefined)],
   ])('rejects non-JSON %s catalog cache data before replacing existing settings', async (_, nonJsonValue) => {
     await userSettingsRepository.replaceAll(exportedData)
     const invalidCache = {
@@ -118,7 +125,14 @@ describe('user data transfer', () => {
       },
     } as unknown as UserDataExport
 
-    await expect(userSettingsRepository.replaceAll(invalidCache)).rejects.toThrow()
-    await expect(exportUserData()).resolves.toBe(JSON.stringify(exportedData))
+    const database = await dbPromise
+    const transactionSpy = vi.spyOn(database, 'transaction')
+    try {
+      await expect(userSettingsRepository.replaceAll(invalidCache)).rejects.toThrow()
+      expect(transactionSpy).not.toHaveBeenCalled()
+      await expect(exportUserData()).resolves.toBe(JSON.stringify(exportedData))
+    } finally {
+      transactionSpy.mockRestore()
+    }
   })
 })
