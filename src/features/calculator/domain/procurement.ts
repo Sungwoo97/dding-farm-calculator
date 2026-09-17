@@ -27,14 +27,22 @@ export function calculatePurchaseCost(
   const packPrice = new Decimal(setting.purchasePackPrice!)
   const unitPrice = packPrice.div(packQuantity)
   const packsToBuy = new Decimal(purchaseQuantity).div(packQuantity).ceil()
+  const unitPriceNumber = unitPrice.toNumber()
+  const consumedCost = unitPrice.mul(purchaseQuantity).toNumber()
+  const cashOutlay = packsToBuy.mul(packPrice).toNumber()
+  const leftoverQuantity = packsToBuy.mul(packQuantity).minus(purchaseQuantity).toNumber()
+
+  if (![unitPriceNumber, consumedCost, cashOutlay, leftoverQuantity].every(Number.isFinite)) {
+    return invalidPurchase(required, purchaseQuantity, ['계산 결과가 표현 가능한 숫자 범위를 초과했습니다.'])
+  }
 
   return {
     requiredQuantity: required,
     purchaseQuantity,
-    unitPrice: unitPrice.toNumber(),
-    consumedCost: unitPrice.mul(purchaseQuantity).toNumber(),
-    cashOutlay: packsToBuy.mul(packPrice).toNumber(),
-    leftoverQuantity: packsToBuy.mul(packQuantity).minus(purchaseQuantity).toNumber(),
+    unitPrice: unitPriceNumber,
+    consumedCost,
+    cashOutlay,
+    leftoverQuantity,
     errors: [],
   }
 }
