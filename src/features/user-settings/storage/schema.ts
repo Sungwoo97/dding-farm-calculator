@@ -14,8 +14,14 @@ export interface Favorite {
   dishItemId: string
 }
 
+export type JsonPrimitive = boolean | null | number | string
+export type JsonValue = JsonObject | JsonPrimitive | JsonValue[]
+export interface JsonObject {
+  [key: string]: JsonValue
+}
+
 export interface CatalogCache {
-  catalog: Record<string, unknown>
+  catalog: JsonObject
   cachedAt: string
   dataVersion: string
 }
@@ -29,6 +35,42 @@ export interface UserDataExport {
 }
 
 const finiteNumber = z.number().finite()
+
+function isJsonValue(value: unknown, ancestors = new Set<object>()): value is JsonValue {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return true
+  if (typeof value === 'number') return Number.isFinite(value)
+  if (typeof value !== 'object') return false
+  if (ancestors.has(value)) return false
+
+  const prototype = Object.getPrototypeOf(value)
+  if (Array.isArray(value)) {
+    ancestors.add(value)
+    let valid = true
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.prototype.hasOwnProperty.call(value, index) || !isJsonValue(value[index], ancestors)) {
+        valid = false
+        break
+      }
+    }
+    ancestors.delete(value)
+    return valid
+  }
+  if (prototype !== Object.prototype && prototype !== null) return false
+
+  ancestors.add(value)
+  const valid = Object.values(value).every((entry) => isJsonValue(entry, ancestors))
+  ancestors.delete(value)
+  return valid
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    isJsonValue(value)
+  )
+}
 
 export const userProfileSchema = z.object({
   skills: z.record(z.string().min(1), finiteNumber.int().nonnegative()),
@@ -51,7 +93,7 @@ export const favoriteSchema = z.object({
 })
 
 export const catalogCacheSchema = z.object({
-  catalog: z.record(z.string(), z.unknown()),
+  catalog: z.custom<JsonObject>(isJsonObject, 'Expected JSON object'),
   cachedAt: z.string().min(1),
   dataVersion: z.string().min(1),
 })

@@ -38,6 +38,7 @@ function errorMessage(error: unknown): string {
 export function useUserSettings(): UseUserSettingsResult {
   const [settings, setSettings] = useState<UserSettingsState>(initialSettings)
   const settingsRef = useRef<UserSettingsState>(initialSettings)
+  const operationQueueRef = useRef(Promise.resolve())
   const [ready, setReady] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -54,9 +55,18 @@ export function useUserSettings(): UseUserSettingsResult {
     setSettings(nextSettings)
   }, [])
 
+  const enqueue = useCallback(<T,>(operation: () => Promise<T>): Promise<T> => {
+    const nextOperation = operationQueueRef.current.then(operation, operation)
+    operationQueueRef.current = nextOperation.then(
+      () => undefined,
+      () => undefined,
+    )
+    return nextOperation
+  }, [])
+
   useEffect(() => {
     let active = true
-    void hydrate()
+    void enqueue(hydrate)
       .catch((error: unknown) => {
         if (active) setSaveError(errorMessage(error))
       })
@@ -66,60 +76,68 @@ export function useUserSettings(): UseUserSettingsResult {
     return () => {
       active = false
     }
-  }, [hydrate])
+  }, [enqueue, hydrate])
 
   const updateMaterial = useCallback(async (setting: MaterialSetting) => {
-    const nextSettings = {
-      ...settingsRef.current,
-      materials: new Map(settingsRef.current.materials).set(setting.itemId, setting),
-    }
-    settingsRef.current = nextSettings
-    setSettings(nextSettings)
-    try {
-      await userSettingsRepository.saveMaterial(setting)
-      setSaveError(null)
-    } catch (error) {
-      setSaveError(errorMessage(error))
-    }
-  }, [])
+    await enqueue(async () => {
+      const nextSettings = {
+        ...settingsRef.current,
+        materials: new Map(settingsRef.current.materials).set(setting.itemId, setting),
+      }
+      settingsRef.current = nextSettings
+      setSettings(nextSettings)
+      try {
+        await userSettingsRepository.saveMaterial(setting)
+        setSaveError(null)
+      } catch (error) {
+        setSaveError(errorMessage(error))
+      }
+    })
+  }, [enqueue])
 
   const updateSkill = useCallback(async (skillId: string, level: number) => {
-    const profileToSave: UserProfile = {
-      ...settingsRef.current.profile,
-      skills: { ...settingsRef.current.profile.skills, [skillId]: level },
-    }
-    const nextSettings = { ...settingsRef.current, profile: profileToSave }
-    settingsRef.current = nextSettings
-    setSettings(nextSettings)
-    try {
-      await userSettingsRepository.saveProfile(profileToSave)
-      setSaveError(null)
-    } catch (error) {
-      setSaveError(errorMessage(error))
-    }
-  }, [])
+    await enqueue(async () => {
+      const profileToSave: UserProfile = {
+        ...settingsRef.current.profile,
+        skills: { ...settingsRef.current.profile.skills, [skillId]: level },
+      }
+      const nextSettings = { ...settingsRef.current, profile: profileToSave }
+      settingsRef.current = nextSettings
+      setSettings(nextSettings)
+      try {
+        await userSettingsRepository.saveProfile(profileToSave)
+        setSaveError(null)
+      } catch (error) {
+        setSaveError(errorMessage(error))
+      }
+    })
+  }, [enqueue])
 
   const importData = useCallback(async (json: string) => {
-    try {
-      await importUserData(json)
-      await hydrate()
-      setSaveError(null)
-    } catch (error) {
-      setSaveError(errorMessage(error))
-    }
-  }, [hydrate])
+    await enqueue(async () => {
+      try {
+        await importUserData(json)
+        await hydrate()
+        setSaveError(null)
+      } catch (error) {
+        setSaveError(errorMessage(error))
+      }
+    })
+  }, [enqueue, hydrate])
 
   const exportData = useCallback(async () => {
-    try {
-      const data = await exportUserData()
-      setSaveError(null)
-      return data
-    } catch (error) {
-      const message = errorMessage(error)
-      setSaveError(message)
-      throw error
-    }
-  }, [])
+    return enqueue(async () => {
+      try {
+        const data = await exportUserData()
+        setSaveError(null)
+        return data
+      } catch (error) {
+        const message = errorMessage(error)
+        setSaveError(message)
+        throw error
+      }
+    })
+  }, [enqueue])
 
   return { settings, ready, saveError, updateMaterial, updateSkill, importData, exportData }
 }

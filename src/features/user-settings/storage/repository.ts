@@ -80,27 +80,37 @@ class IndexedDbUserSettingsRepository implements UserSettingsRepository {
       'readwrite',
     )
 
-    await Promise.all([
-      transaction.objectStore('profile').clear(),
-      transaction.objectStore('materials').clear(),
-      transaction.objectStore('favorites').clear(),
-      transaction.objectStore('catalog_cache').clear(),
-    ])
+    try {
+      await Promise.all([
+        transaction.objectStore('profile').clear(),
+        transaction.objectStore('materials').clear(),
+        transaction.objectStore('favorites').clear(),
+        transaction.objectStore('catalog_cache').clear(),
+      ])
 
-    await transaction.objectStore('profile').put(validData.profile, PROFILE_KEY)
-    for (const material of validData.materials) {
-      await transaction.objectStore('materials').put(material)
-    }
-    for (const favorite of validData.favorites) {
-      await transaction.objectStore('favorites').put(favorite)
-    }
-    if (validData.catalogCache) {
-      await transaction
-        .objectStore('catalog_cache')
-        .put(validData.catalogCache, CATALOG_CACHE_KEY)
-    }
+      await transaction.objectStore('profile').put(validData.profile, PROFILE_KEY)
+      for (const material of validData.materials) {
+        await transaction.objectStore('materials').put(material)
+      }
+      for (const favorite of validData.favorites) {
+        await transaction.objectStore('favorites').put(favorite)
+      }
+      if (validData.catalogCache) {
+        await transaction
+          .objectStore('catalog_cache')
+          .put(validData.catalogCache, CATALOG_CACHE_KEY)
+      }
 
-    await transaction.done
+      await transaction.done
+    } catch (error) {
+      try {
+        transaction.abort()
+      } catch {
+        // The transaction may already be inactive after a native IndexedDB error.
+      }
+      await transaction.done.catch(() => undefined)
+      throw error
+    }
   }
 
   async getCatalogCache(): Promise<CatalogCache | null> {

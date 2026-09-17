@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { defaultUserProfile, userSettingsRepository } from './repository'
+import {
+  defaultUserProfile,
+  userSettingsRepository,
+} from './repository'
 import { exportUserData, importUserData } from './export'
+import type { UserDataExport } from './schema'
 
 const exportedData = {
   schemaVersion: 1 as const,
@@ -27,6 +31,12 @@ const exportedData = {
     cachedAt: '2026-09-16T12:00:00.000Z',
     dataVersion: '2026-09-16',
   },
+}
+
+function sparseArray(): string[] {
+  const values = [] as string[]
+  values[1] = 'second item'
+  return values
 }
 
 describe('user data transfer', () => {
@@ -91,5 +101,24 @@ describe('user data transfer', () => {
     await expect(
       importUserData(JSON.stringify({ ...exportedData, schemaVersion: 2 })),
     ).rejects.toThrow('Unsupported user-data schema version: 2')
+  })
+
+  it.each([
+    ['Date', new Date()],
+    ['BigInt', BigInt(1)],
+    ['function', () => undefined],
+    ['sparse array', sparseArray()],
+  ])('rejects non-JSON %s catalog cache data before replacing existing settings', async (_, nonJsonValue) => {
+    await userSettingsRepository.replaceAll(exportedData)
+    const invalidCache = {
+      ...exportedData,
+      catalogCache: {
+        ...exportedData.catalogCache,
+        catalog: { generatedAt: nonJsonValue },
+      },
+    } as unknown as UserDataExport
+
+    await expect(userSettingsRepository.replaceAll(invalidCache)).rejects.toThrow()
+    await expect(exportUserData()).resolves.toBe(JSON.stringify(exportedData))
   })
 })
