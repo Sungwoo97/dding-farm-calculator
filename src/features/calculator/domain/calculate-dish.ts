@@ -64,6 +64,11 @@ function validateInput(input: CalculateDishInput): string[] {
   const errors: string[] = []
   if (!Number.isFinite(input.craftQuantity) || input.craftQuantity <= 0) errors.push(`INVALID_CRAFT_QUANTITY:${input.dishId}`)
   if (input.basePrice === null || !Number.isFinite(input.basePrice) || input.basePrice < 0) errors.push(`MISSING_SALE_PRICE:${input.dishId}`)
+  const dish = input.catalog.items.find((item) => item.id === input.dishId)
+  if (!dish || dish.category !== 'DISH') errors.push(`INVALID_DISH:${input.dishId}`)
+  else if (!input.catalog.recipes.some((recipe) => recipe.outputItemId === input.dishId)) {
+    errors.push(`MISSING_DISH_RECIPE:${input.dishId}`)
+  }
   for (const effect of input.skillProfile.effects) {
     if (effect.verified === false) errors.push(`UNVERIFIED_SKILL_EFFECT:${effect.type}`)
     if (!Number.isFinite(effect.value) || !Number.isFinite(effect.order)) errors.push(`INVALID_SKILL_EFFECT:${effect.type}`)
@@ -79,6 +84,7 @@ function calculateSaleRevenue(input: CalculateDishInput, errors: string[]): numb
 
   const expectedSaleQuantity = input.skillProfile.effects
     .filter((effect) => effect.type === 'EXPECTED_EXTRA_OUTPUT')
+    .filter((effect) => input.craftQuantity >= (effect.minimumQuantity ?? 0))
     .reduce((quantity, effect) => quantity.mul(new Decimal(1).plus(effect.value)), new Decimal(input.craftQuantity))
   const revenue = applySalePriceRules(input.basePrice!, expectedSaleQuantity.toNumber(), input.skillProfile.effects)
 
@@ -90,7 +96,7 @@ function calculateSaleRevenue(input: CalculateDishInput, errors: string[]): numb
 }
 
 function expandIngredients(input: CalculateDishInput, errors: string[]) {
-  if (errors.some((error) => error.startsWith('INVALID_CRAFT_QUANTITY'))) return null
+  if (errors.some((error) => error.startsWith('INVALID_CRAFT_QUANTITY') || error.startsWith('INVALID_DISH') || error.startsWith('MISSING_DISH_RECIPE'))) return null
   try {
     const expanded = expandRecipe(input.dishId, input.craftQuantity, input.catalog, scenarioSettings(input))
     errors.push(...expanded.errors)
@@ -107,18 +113,13 @@ function expandIngredients(input: CalculateDishInput, errors: string[]) {
 function scenarioSettings(input: CalculateDishInput): Map<string, MaterialSetting> {
   if (input.scenario === 'ACTUAL') return input.settings
 
-  const recipeOutputs = new Set(input.catalog.recipes.map((recipe) => recipe.outputItemId))
   const adjusted = new Map(input.settings)
   for (const item of input.catalog.items) {
-    if (!item.tradeable || recipeOutputs.has(item.id)) continue
+    if (!item.tradeable) continue
     const setting = adjusted.get(item.id)
-    adjusted.set(item.id, {
-      itemId: item.id,
-      sourceMode: 'PURCHASE',
-      ownedQuantity: 0,
-      purchasePackQuantity: setting?.purchasePackQuantity,
-      purchasePackPrice: setting?.purchasePackPrice,
-    })
+    adjusted.set(item.id, setting
+      ? { ...setting, sourceMode: 'PURCHASE', ownedQuantity: 0 }
+      : { itemId: item.id, sourceMode: 'PURCHASE', ownedQuantity: 0 })
   }
   return adjusted
 }

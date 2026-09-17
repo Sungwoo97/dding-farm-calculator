@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { calculateDish } from './calculate-dish'
 import { rankDishes } from './recommend'
 import type { DishCalculation } from './types'
 
@@ -32,5 +33,28 @@ describe('rankDishes', () => {
     })[itemId] ?? itemId)
 
     expect(ranked.map((result) => result.dishId)).toEqual(['apple', 'zucchini'])
+  })
+
+  it('excludes a requested dish with no recipe from ranking', () => {
+    const unmadeDish = calculateDish({
+      dishId: 'unmade-dish',
+      scenario: 'ACTUAL',
+      craftQuantity: 1,
+      basePrice: 1_000,
+      catalog: {
+        items: [{ id: 'unmade-dish', slug: 'unmade-dish', name: 'Unmade dish', category: 'DISH', tradeable: true }],
+        recipes: [],
+      },
+      settings: new Map([['unmade-dish', {
+        itemId: 'unmade-dish',
+        sourceMode: 'PURCHASE' as const,
+        ownedQuantity: 0,
+        purchasePackQuantity: 1,
+        purchasePackPrice: 100,
+      }]]),
+      skillProfile: { effects: [] },
+    })
+
+    expect(rankDishes([unmadeDish], 'NET_PROFIT', (itemId) => itemId)).toEqual([])
   })
 })
