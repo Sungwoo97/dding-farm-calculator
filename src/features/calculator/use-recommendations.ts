@@ -16,6 +16,14 @@ export interface RecommendationSet {
   lastCalculatedAt: string
 }
 
+export type RecommendationSort = 'ROI' | 'NET_PROFIT' | 'NAME'
+export type RecommendationSorts = Record<CalculationScenario, RecommendationSort>
+
+export const defaultRecommendationSorts: RecommendationSorts = {
+  ALL_PURCHASE: 'ROI',
+  ACTUAL: 'NET_PROFIT',
+}
+
 export function selectedSkillProfile(
   catalog: PublishedCatalog,
   settings: UserSettingsState,
@@ -32,6 +40,7 @@ export function selectedSkillProfile(
 export function useRecommendations(
   catalog: PublishedCatalog,
   settings: UserSettingsState,
+  sorts: RecommendationSorts = defaultRecommendationSorts,
 ): { allPurchase: RecommendationSet; actual: RecommendationSet } {
   const lookups = useMemo(() => ({
     dishes: catalog.items.filter((item) => item.category === 'DISH'),
@@ -60,7 +69,7 @@ export function useRecommendations(
       }))
       const ranked = rankDishes(
         calculations,
-        scenario === 'ALL_PURCHASE' ? 'ROI' : 'NET_PROFIT',
+        sorts[scenario],
         itemName,
       )
       const rankedIds = new Set(ranked.map((calculation) => calculation.dishId))
@@ -77,5 +86,5 @@ export function useRecommendations(
       allPurchase: build('ALL_PURCHASE'),
       actual: build('ACTUAL'),
     }
-  }, [catalog, lookups, settings, skillProfile])
+  }, [catalog, lookups, settings, skillProfile, sorts])
 }

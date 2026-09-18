@@ -6,7 +6,12 @@ import type { CalculationScenario } from '@/features/calculator/domain/types'
 import type { PublishedCatalog } from '@/features/catalog/types'
 import { useUserSettings } from '@/features/user-settings/use-user-settings'
 
-import { useRecommendations } from '../use-recommendations'
+import {
+  defaultRecommendationSorts,
+  type RecommendationSort,
+  type RecommendationSorts,
+  useRecommendations,
+} from '../use-recommendations'
 import { CycleBanner } from './cycle-banner'
 import { calculationErrorText } from './presentation'
 import { RankingTable } from './ranking-table'
@@ -22,7 +27,8 @@ export function RecommendationDashboard({
 }) {
   const { settings, ready, saveError } = useUserSettings()
   const [scenario, setScenario] = useState<CalculationScenario>('ALL_PURCHASE')
-  const recommendations = useRecommendations(catalog, settings)
+  const [sorts, setSorts] = useState<RecommendationSorts>(defaultRecommendationSorts)
+  const recommendations = useRecommendations(catalog, settings, sorts)
   const itemsById = useMemo(
     () => new Map(catalog.items.map((item) => [item.id, item])),
     [catalog],
@@ -38,6 +44,12 @@ export function RecommendationDashboard({
   }
 
   const current = scenario === 'ALL_PURCHASE' ? recommendations.allPurchase : recommendations.actual
+  const currentSort = sorts[scenario]
+  const sortDescription = {
+    ROI: '구매 ROI가 높은 순서입니다.',
+    NET_PROFIT: '순이익이 높은 순서입니다.',
+    NAME: '요리 이름의 가나다 순서입니다.',
+  }[currentSort]
 
   return (
     <section className={styles.dashboard}>
@@ -57,9 +69,24 @@ export function RecommendationDashboard({
         <div className={styles.resultsHeading}>
           <div>
             <h2>{scenario === 'ALL_PURCHASE' ? '구매 효율 순위' : '실제 순이익 순위'}</h2>
-            <p>{scenario === 'ALL_PURCHASE' ? '구매 ROI가 높은 순서입니다.' : '내 재료 조달을 반영한 순이익 순서입니다.'}</p>
+            <p>{sortDescription}</p>
           </div>
-          <time dateTime={current.lastCalculatedAt}>방금 계산</time>
+          <div className={styles.resultControls}>
+            <label htmlFor="recommendation-sort">정렬 기준</label>
+            <select
+              id="recommendation-sort"
+              value={currentSort}
+              onChange={(event) => {
+                const sort = event.target.value as RecommendationSort
+                setSorts((currentSorts) => ({ ...currentSorts, [scenario]: sort }))
+              }}
+            >
+              <option value="NET_PROFIT">순이익</option>
+              <option value="ROI">구매 ROI</option>
+              <option value="NAME">이름</option>
+            </select>
+            <time dateTime={current.lastCalculatedAt}>방금 계산</time>
+          </div>
         </div>
         <RankingTable recommendation={current} itemsById={itemsById} />
       </section>

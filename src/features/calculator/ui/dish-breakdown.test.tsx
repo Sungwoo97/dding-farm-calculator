@@ -64,6 +64,7 @@ describe('DishBreakdown', () => {
           ownedQuantity: 1,
           purchasePackQuantity: 4,
           purchasePackPrice: 400,
+          observedAt: '2026-09-18T01:02:03.000Z',
         },
         { itemId: ids.salt, sourceMode: 'SELF', ownedQuantity: 1 },
       ],
@@ -91,6 +92,8 @@ describe('DishBreakdown', () => {
     expect(tomato).toHaveTextContent('소모 원가 200 G')
     expect(tomato).toHaveTextContent('현금 지출 400 G')
     expect(tomato).toHaveTextContent('잔여 2개')
+    expect(tomato).toHaveTextContent('가격 관측 2026. 9. 18. 오전 10:02')
+    expect(tomato.querySelector('time')).toHaveAttribute('dateTime', '2026-09-18T01:02:03.000Z')
 
     const summary = screen.getByRole('region', { name: '수익 계산' })
     const expectMetric = (label: string, value: string) => {
@@ -102,6 +105,41 @@ describe('DishBreakdown', () => {
     expectMetric('실제 지출액', '400 G')
     expectMetric('순이익', '900 G')
     expectMetric('구매 ROI', '450%')
+    expect(summary).toHaveTextContent('판매 가격 확인 2026. 9. 18. 오전 9:00')
+    expect(summary.querySelector('time')).toHaveAttribute('dateTime', '2026-09-18T00:00:00.000Z')
+  })
+
+  it('shows unavailable procurement values and all purchase calculation errors', async () => {
+    await userSettingsRepository.replaceAll({
+      schemaVersion: 1,
+      profile: defaultUserProfile,
+      materials: [
+        {
+          itemId: ids.tomato,
+          sourceMode: 'PURCHASE',
+          ownedQuantity: 0,
+          purchasePackQuantity: Number.MIN_VALUE,
+          purchasePackPrice: 1,
+          observedAt: '2026-09-18T01:02:03.000Z',
+        },
+        { itemId: ids.salt, sourceMode: 'SELF', ownedQuantity: 1 },
+      ],
+      favorites: [],
+      catalogCache: null,
+    })
+
+    render(<DishBreakdown catalog={catalog} dishId={ids.dish} scenario="ACTUAL" />)
+
+    const errors = await screen.findByRole('alert', { name: '계산할 수 없는 이유' })
+    expect(errors).toHaveTextContent('토마토 가격 입력 필요')
+
+    const procurement = screen.getByRole('region', { name: '재료 조달 내역' })
+    const tomato = within(procurement).getByRole('listitem', { name: /토마토/ })
+    expect(tomato).toHaveTextContent('구매 계산 불가')
+    expect(tomato).toHaveTextContent('소모 원가 계산 불가')
+    expect(tomato).toHaveTextContent('현금 지출 계산 불가')
+    expect(tomato).toHaveTextContent('계산 결과가 표현 가능한 숫자 범위를 초과했습니다.')
+    expect(tomato).not.toHaveTextContent('0 G')
   })
 
   it('renders every blocking error instead of presenting an invalid result', async () => {

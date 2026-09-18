@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { PublishedCatalog } from '@/features/catalog/types'
 
 import type { DishCalculation } from '../domain/types'
-import { formatGold, formatRoi } from './presentation'
+import { formatGold, formatRoi, numberFormat, selfSuppliedQuantity } from './presentation'
 import styles from './recommendation-dashboard.module.css'
 
 export function RecommendationCard({
@@ -23,8 +23,10 @@ export function RecommendationCard({
         <h3><Link href={`/recipes/${dish.slug}?scenario=${calculation.scenario}`}>{dish.name}</Link></h3>
       </div>
       <dl className={styles.cardMetrics}>
+        <div><dt>판매 수익</dt><dd>{formatGold(calculation.saleRevenue)}</dd></div>
         <div><dt>순이익</dt><dd>{formatGold(calculation.netProfit)}</dd></div>
         <div><dt>구매 ROI</dt><dd>{formatRoi(calculation.purchaseRoi, calculation.consumedPurchaseCost)}</dd></div>
+        <div><dt>자가 조달</dt><dd>{numberFormat.format(selfSuppliedQuantity(calculation.selfSupplied))}개</dd></div>
         <div><dt>소모 원가</dt><dd>{formatGold(calculation.consumedPurchaseCost)}</dd></div>
         <div><dt>현금 지출</dt><dd>{formatGold(calculation.cashOutlay)}</dd></div>
       </dl>

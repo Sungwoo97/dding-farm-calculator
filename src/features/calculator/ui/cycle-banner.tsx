@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 import type { PublishedCatalog } from '@/features/catalog/types'
 
 import styles from './recommendation-dashboard.module.css'
@@ -10,12 +12,24 @@ const cycleDate = new Intl.DateTimeFormat('ko-KR', {
 
 export function CycleBanner({
   cycle,
-  now = new Date().toISOString(),
+  now,
 }: {
   cycle: PublishedCatalog['activeCycle']
   now?: string
 }) {
-  const expired = Date.parse(now) >= Date.parse(cycle.endsAt)
+  const [currentTime, setCurrentTime] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (now !== undefined) return
+    const remaining = Date.parse(cycle.endsAt) - Date.now()
+    if (remaining <= 0) return
+
+    const timeout = window.setTimeout(() => setCurrentTime(Date.now()), remaining)
+    return () => window.clearTimeout(timeout)
+  }, [cycle.endsAt, now])
+
+  const displayedTime = now === undefined ? currentTime : Date.parse(now)
+  const expired = displayedTime >= Date.parse(cycle.endsAt)
 
   return (
     <aside className={styles.cycleBanner} aria-label="가격 주기">

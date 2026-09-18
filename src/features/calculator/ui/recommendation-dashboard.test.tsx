@@ -82,6 +82,16 @@ describe('RecommendationDashboard', () => {
 
     const allPurchaseTable = screen.getByRole('table', { name: '전부 구매 효율 순위' })
     expect(within(allPurchaseTable).getAllByRole('link').map((link) => link.textContent)).toEqual(['토마토 볶음', '밀 스튜'])
+    expect(within(allPurchaseTable).getByRole('columnheader', { name: '판매 수익' })).toBeInTheDocument()
+    expect(within(allPurchaseTable).getByRole('columnheader', { name: '자가 조달' })).toBeInTheDocument()
+    expect(within(allPurchaseTable).getByRole('row', { name: /토마토 볶음/ })).toHaveTextContent('600 G')
+    expect(within(allPurchaseTable).getByRole('row', { name: /토마토 볶음/ })).toHaveTextContent('자가 조달 0개')
+
+    const mobileRanking = screen.getAllByLabelText('전부 구매 효율 순위')
+      .find((element) => element.tagName === 'DIV')!
+    const firstCard = within(mobileRanking).getAllByRole('article', { hidden: true })[0]
+    expect(within(firstCard).getByText('판매 수익').nextElementSibling).toHaveTextContent('600 G')
+    expect(within(firstCard).getByText('자가 조달').nextElementSibling).toHaveTextContent('0개')
 
     const unavailable = screen.getByRole('region', { name: '계산 불가 요리' })
     expect(unavailable).toHaveTextContent('소금국')
@@ -93,6 +103,28 @@ describe('RecommendationDashboard', () => {
     const actualTable = screen.getByRole('table', { name: '내 실제 조달 순위' })
     expect(within(actualTable).getAllByRole('link').map((link) => link.textContent)).toEqual(['밀 스튜', '토마토 볶음'])
     expect(within(actualTable).getByRole('row', { name: /토마토 볶음/ })).toHaveTextContent('구매비용 없음')
+    expect(within(actualTable).getByRole('row', { name: /토마토 볶음/ })).toHaveTextContent('자가 조달 1개')
     expect(document.body).not.toHaveTextContent('Infinity')
+  })
+
+  it('keeps an accessible sort choice for each scenario', async () => {
+    render(<RecommendationDashboard catalog={catalog} />)
+
+    const allPurchaseTab = await screen.findByRole('tab', { name: '전부 구매 효율' })
+    const sort = screen.getByRole('combobox', { name: '정렬 기준' })
+    expect(sort).toHaveValue('ROI')
+    expect(within(sort).getByRole('option', { name: '순이익' })).toBeInTheDocument()
+    expect(within(sort).getByRole('option', { name: '구매 ROI' })).toBeInTheDocument()
+    expect(within(sort).getByRole('option', { name: '이름' })).toBeInTheDocument()
+
+    fireEvent.change(sort, { target: { value: 'NAME' } })
+    expect(within(screen.getByRole('table', { name: '전부 구매 효율 순위' }))
+      .getAllByRole('link').map((link) => link.textContent)).toEqual(['밀 스튜', '토마토 볶음'])
+
+    fireEvent.click(screen.getByRole('tab', { name: '내 실제 조달' }))
+    expect(sort).toHaveValue('NET_PROFIT')
+
+    fireEvent.click(allPurchaseTab)
+    expect(sort).toHaveValue('NAME')
   })
 })

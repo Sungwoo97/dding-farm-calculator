@@ -11,7 +11,7 @@ import { selectedSkillProfile } from '@/features/calculator/use-recommendations'
 import type { PublishedCatalog } from '@/features/catalog/types'
 import { useUserSettings } from '@/features/user-settings/use-user-settings'
 
-import { calculationErrorText, formatGold, formatRoi, numberFormat } from './presentation'
+import { calculationErrorText, formatGold, formatRoi, formatTimestamp, numberFormat } from './presentation'
 import styles from './recommendation-dashboard.module.css'
 
 function settingsForScenario(
@@ -74,6 +74,19 @@ function RecipeNode({
   )
 }
 
+function procurementRequirements(tree: RecipeCostNode): Array<{ itemId: string; quantity: number }> {
+  const quantities = new Map<string, number>()
+  const visit = (node: RecipeCostNode) => {
+    if (node.children.length === 0 && (node.strategy === 'LEAF' || node.strategy === 'BUY')) {
+      quantities.set(node.itemId, (quantities.get(node.itemId) ?? 0) + node.requestedQuantity)
+      return
+    }
+    node.children.forEach(visit)
+  }
+  visit(tree)
+  return [...quantities].map(([itemId, quantity]) => ({ itemId, quantity }))
+}
+
 export function DishBreakdown({
   catalog,
   dishId,
@@ -90,7 +103,8 @@ export function DishBreakdown({
   )
   const detail = useMemo(() => {
     const craftQuantity = settings.profile.defaultCraftQuantity
-    const basePrice = catalog.prices.find((price) => price.dishItemId === dishId)?.basePrice ?? null
+    const salePrice = catalog.prices.find((price) => price.dishItemId === dishId) ?? null
+    const basePrice = salePrice?.basePrice ?? null
     const effectiveSettings = settingsForScenario(catalog, settings.materials, scenario)
     const skillProfile = selectedSkillProfile(catalog, settings)
     const calculation = calculateDish({
@@ -110,13 +124,15 @@ export function DishBreakdown({
       recipe = null
     }
 
-    const procurement = (recipe?.leaves ?? []).map((leaf) => {
+    const procurement = (recipe ? procurementRequirements(recipe.tree) : []).map((leaf) => {
       const material = effectiveSettings.get(leaf.itemId)
       const purchase = material ? calculatePurchaseCost(leaf.quantity, material) : null
+      const purchaseValid = purchase !== null && purchase.errors.length === 0
       return {
         ...leaf,
         purchase,
-        selfSuppliedQuantity: purchase ? leaf.quantity - purchase.purchaseQuantity : 0,
+        selfSuppliedQuantity: purchaseValid ? leaf.quantity - purchase.purchaseQuantity : null,
+        observedAt: material?.observedAt,
       }
     })
 
@@ -124,6 +140,7 @@ export function DishBreakdown({
       calculation,
       recipe,
       procurement,
+      salePrice,
       baseRevenue: basePrice === null ? null : applySalePriceRules(basePrice, craftQuantity, []),
     }
   }, [catalog, dishId, scenario, settings])
@@ -169,15 +186,31 @@ export function DishBreakdown({
             {detail.procurement.map((entry) => (
               <li key={entry.itemId} aria-label={`${itemName(entry.itemId)} 조달 내역`}>
                 <strong>{itemName(entry.itemId)} · 필요 {numberFormat.format(entry.quantity)}개</strong>
-                {entry.purchase ? (
+                {entry.purchase && entry.purchase.errors.length === 0 ? (
                   <div className={styles.procurementMetrics}>
                     <span>구매 {numberFormat.format(entry.purchase.purchaseQuantity)}개</span>
-                    <span>자가 조달 {numberFormat.format(entry.selfSuppliedQuantity)}개</span>
+                    <span>자가 조달 {numberFormat.format(entry.selfSuppliedQuantity!)}개</span>
                     <span>소모 원가 {formatGold(entry.purchase.consumedCost)}</span>
                     <span>현금 지출 {formatGold(entry.purchase.cashOutlay)}</span>
                     <span>잔여 {numberFormat.format(entry.purchase.leftoverQuantity)}개</span>
                   </div>
+                ) : entry.purchase ? (
+                  <div>
+                    <div className={styles.procurementMetrics}>
+                      <span>구매 계산 불가</span>
+                      <span>자가 조달 계산 불가</span>
+                      <span>소모 원가 계산 불가</span>
+                      <span>현금 지출 계산 불가</span>
+                      <span>잔여 계산 불가</span>
+                    </div>
+                    <ul className={styles.procurementErrors}>
+                      {entry.purchase.errors.map((error) => <li key={error}>{error}</li>)}
+                    </ul>
+                  </div>
                 ) : <span>가격 입력 필요</span>}
+                {entry.observedAt ? (
+                  <p className={styles.timestamp}>가격 관측 <time dateTime={entry.observedAt}>{formatTimestamp(entry.observedAt)}</time></p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -194,6 +227,9 @@ export function DishBreakdown({
           <div><dt>순이익</dt><dd>{formatGold(detail.calculation.netProfit)}</dd></div>
           <div><dt>구매 ROI</dt><dd>{formatRoi(detail.calculation.purchaseRoi, detail.calculation.consumedPurchaseCost)}</dd></div>
         </dl>
+        {detail.salePrice ? (
+          <p className={styles.timestamp}>판매 가격 확인 <time dateTime={detail.salePrice.verifiedAt}>{formatTimestamp(detail.salePrice.verifiedAt)}</time></p>
+        ) : null}
       </section>
     </article>
   )

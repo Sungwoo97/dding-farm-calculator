@@ -1,6 +1,16 @@
 import type { PublishedCatalog } from '@/features/catalog/types'
 
 export const numberFormat = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 })
+const dateTimeFormat = new Intl.DateTimeFormat('ko-KR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'Asia/Seoul',
+})
+
+export function formatTimestamp(value: string): string {
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? dateTimeFormat.format(date) : value
+}
 
 export function formatGold(value: number | null): string {
   return value === null ? '계산 불가' : `${numberFormat.format(value)} G`
@@ -9,6 +19,12 @@ export function formatGold(value: number | null): string {
 export function formatRoi(value: number | null, purchaseCost: number | null): string {
   if (purchaseCost === 0) return '구매비용 없음'
   return value === null ? '계산 불가' : `${numberFormat.format(value)}%`
+}
+
+export function selfSuppliedQuantity(
+  selfSupplied: Array<{ itemId: string; quantity: number }>,
+): number {
+  return selfSupplied.reduce((total, material) => total + material.quantity, 0)
 }
 
 export function calculationErrorText(

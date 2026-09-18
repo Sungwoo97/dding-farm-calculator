@@ -140,6 +140,33 @@
   white-space: nowrap;
 }
 
+.resultControls {
+  display: grid;
+  grid-template-columns: auto minmax(120px, auto);
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.resultControls label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.resultControls select {
+  min-height: 44px;
+  padding: 6px 32px 6px 10px;
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.resultControls time {
+  grid-column: 1 / -1;
+  text-align: right;
+}
+
 .desktopRanking table {
   width: 100%;
   border-collapse: collapse;
@@ -295,6 +322,24 @@
   margin-top: 6px;
   color: var(--muted);
   font-size: 0.875rem;
+}
+
+.procurementErrors {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.timestamp {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.timestamp time {
+  color: var(--foreground);
+  font-weight: 700;
 }
 
 .errorBox {
