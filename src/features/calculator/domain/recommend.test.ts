@@ -57,4 +57,22 @@ describe('rankDishes', () => {
 
     expect(rankDishes([unmadeDish], 'NET_PROFIT', (itemId) => itemId)).toEqual([])
   })
+
+  it('puts numeric ROI ahead of null ROI', () => {
+    const ranked = rankDishes([
+      calculation('free', { purchaseRoi: null, consumedPurchaseCost: 0 }),
+      calculation('paid', { purchaseRoi: 25 }),
+    ], 'ROI', (itemId) => itemId)
+
+    expect(ranked.map((result) => result.dishId)).toEqual(['paid', 'free'])
+  })
+
+  it('sorts by Korean dish name when NAME is requested', () => {
+    const ranked = rankDishes([
+      calculation('soup', { netProfit: 9_999 }),
+      calculation('bread', { netProfit: 1 }),
+    ], 'NAME', (itemId) => ({ soup: '하늘 수프', bread: '가을 빵' })[itemId] ?? itemId)
+
+    expect(ranked.map((result) => result.dishId)).toEqual(['bread', 'soup'])
+  })
 })
