@@ -36,6 +36,8 @@ function databaseRows(): Record<string, Record<string, unknown>[]> {
 let rows: ReturnType<typeof databaseRows>
 let requests: URL[]
 let failedTable: string | undefined
+let failedAfterCursor: boolean
+let rowCap: number
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_USE_FIXTURES', '0')
@@ -44,15 +46,22 @@ beforeEach(() => {
   rows = databaseRows()
   requests = []
   failedTable = undefined
+  failedAfterCursor = false
+  rowCap = 1000
   server.createServerClient.mockResolvedValue(createClient('https://catalog.supabase.co', 'sb_publishable_test', {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: async (input) => {
       const url = new URL(String(input))
       requests.push(url)
       const table = url.pathname.split('/').at(-1)!
-      return new Response(JSON.stringify(table === failedTable
+      const cursor = url.searchParams.get('id')?.replace(/^gt\./, '')
+      const failed = table === failedTable && (!failedAfterCursor || cursor !== undefined)
+      const orderedRows = [...rows[table]].sort((left, right) => String(left.id).localeCompare(String(right.id)))
+      const visibleRows = cursor ? orderedRows.filter((row) => String(row.id) > cursor) : orderedRows
+      const page = visibleRows.slice(0, Math.min(table === 'price_cycles' ? 1000 : rowCap, Number(url.searchParams.get('limit') ?? 1000)))
+      return new Response(JSON.stringify(failed
         ? { message: 'database unavailable', code: 'XX000' }
-        : rows[table]), { status: table === failedTable ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
+        : page), { status: failed ? 500 : 200, headers: { 'Content-Type': 'application/json' } })
     } },
   }))
 })
@@ -60,6 +69,45 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
 describe('getPublishedCatalog', () => {
+  function addIngredientsAcrossPageBoundary() {
+    rows.recipe_ingredients = []
+    for (let index = 1; index <= 1001; index += 1) {
+      const itemId = `10000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+      rows.items.push({ ...rows.items[0], id: itemId, slug: `ingredient-${index}` })
+      rows.recipe_ingredients.push({ ...source, id: `20000000-0000-4000-8000-${String(index).padStart(12, '0')}`, recipe_id: recipeId, ingredient_item_id: itemId, quantity: index === 1001 ? 7 : 1 })
+    }
+  }
+
+  it('maps every ingredient when a recipe spans the 1000-row response boundary', async () => {
+    addIngredientsAcrossPageBoundary()
+    const catalog = await getPublishedCatalog(now)
+    expect(catalog.items).toHaveLength(1003)
+    expect(catalog.recipes[0].ingredients).toHaveLength(1001)
+    expect(catalog.recipes[0].ingredients.at(-1)).toEqual({ itemId: '10000000-0000-4000-8000-000000001001', quantity: 7 })
+    expect(catalog.recipes[0].ingredients.reduce((sum, ingredient) => sum + ingredient.quantity, 0)).toBe(1007)
+    expect(requests.filter((url) => !url.pathname.endsWith('/price_cycles')).every((url) => url.searchParams.get('order') === 'id.asc')).toBe(true)
+  })
+
+  it('rejects the catalog if a later ingredient page fails', async () => {
+    addIngredientsAcrossPageBoundary()
+    failedTable = 'recipe_ingredients'
+    failedAfterCursor = true
+    await expect(getPublishedCatalog(now)).rejects.toBeInstanceOf(CatalogQueryError)
+  })
+
+  it('fetches all six catalog collections even when the server returns short pages', async () => {
+    rows = JSON.parse(JSON.stringify(fixtureRows))
+    rows.skills.push({ ...rows.skills[0], id: '10000000-0000-4000-8000-000000000052', slug: 'second-skill' })
+    rowCap = 1
+    const catalog = await getPublishedCatalog(now)
+    expect(catalog.items).toHaveLength(7)
+    expect(catalog.recipes).toHaveLength(4)
+    expect(catalog.recipes.flatMap((recipe) => recipe.ingredients)).toHaveLength(8)
+    expect(catalog.prices).toHaveLength(3)
+    expect(catalog.skills).toHaveLength(2)
+    expect(catalog.skills[0].levels).toHaveLength(2)
+  })
+
   it('queries one published cycle with inclusive start and exclusive end, then maps domain fields', async () => {
     const catalog = await getPublishedCatalog(now)
     const cycleRequest = requests.find((url) => url.pathname.endsWith('/price_cycles'))!

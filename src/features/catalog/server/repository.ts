@@ -12,6 +12,29 @@ async function readRows(table: string, query: PromiseLike<{ data: unknown; error
   return data
 }
 
+type CatalogQuery = ReturnType<ReturnType<SupabaseClient['from']>['select']>
+const pageSchema = z.array(z.object({ id: z.uuid() }).passthrough())
+
+async function readAllRows(table: string, createQuery: () => CatalogQuery) {
+  const rows: z.infer<typeof pageSchema> = []
+  let cursor: string | undefined
+  while (true) {
+    let query = createQuery().order('id', { ascending: true }).limit(1000)
+    if (cursor !== undefined) query = query.gt('id', cursor)
+    const page = pageSchema.parse(await readRows(table, query))
+    if (page.length === 0) return rows
+    for (const row of page) {
+      if (cursor !== undefined && row.id <= cursor) {
+        throw new CatalogQueryError(table, new Error('Catalog pagination did not advance in ID order'))
+      }
+      cursor = row.id
+      rows.push(row)
+    }
+    // A server may cap results below our requested page size. Continue until
+    // an empty page, never interpret a short page as proof of completeness.
+  }
+}
+
 async function selectPublishedCatalogRows(client: SupabaseClient, now: Date) {
   const timestamp = now.toISOString()
   const cycles = z.array(cycleRowSchema).parse(await readRows('price_cycles', client.from('price_cycles')
@@ -21,12 +44,12 @@ async function selectPublishedCatalogRows(client: SupabaseClient, now: Date) {
   assertActiveCycle(cycles[0], now)
 
   const [items, recipes, ingredients, prices, skills, levels] = await Promise.all([
-    readRows('items', client.from('items').select('*').eq('active', true).order('id')),
-    readRows('recipes', client.from('recipes').select('*').eq('active', true).lte('valid_from', timestamp).or(`valid_to.is.null,valid_to.gt.${timestamp}`).order('id')),
-    readRows('recipe_ingredients', client.from('recipe_ingredients').select('*').order('id')),
-    readRows('cooking_prices', client.from('cooking_prices').select('*').eq('cycle_id', cycles[0].id).order('id')),
-    readRows('skills', client.from('skills').select('*').eq('active', true).order('id')),
-    readRows('skill_levels', client.from('skill_levels').select('*').eq('verified', true).order('id')),
+    readAllRows('items', () => client.from('items').select('*').eq('active', true)),
+    readAllRows('recipes', () => client.from('recipes').select('*').eq('active', true).lte('valid_from', timestamp).or(`valid_to.is.null,valid_to.gt.${timestamp}`)),
+    readAllRows('recipe_ingredients', () => client.from('recipe_ingredients').select('*')),
+    readAllRows('cooking_prices', () => client.from('cooking_prices').select('*').eq('cycle_id', cycles[0].id)),
+    readAllRows('skills', () => client.from('skills').select('*').eq('active', true)),
+    readAllRows('skill_levels', () => client.from('skill_levels').select('*').eq('verified', true)),
   ])
   return { items, recipes, recipe_ingredients: ingredients, price_cycles: cycles, cooking_prices: prices, skills, skill_levels: levels }
 }
