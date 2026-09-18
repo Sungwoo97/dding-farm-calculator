@@ -17,17 +17,19 @@ const tomato: Item = {
 }
 
 function MaterialPriceTableHarness({
+  initialSetting = {
+    itemId: tomato.id,
+    sourceMode: 'SELF',
+    ownedQuantity: 0,
+  },
   onSettingChange = () => undefined,
 }: {
+  initialSetting?: MaterialSetting
   onSettingChange?: (setting: MaterialSetting) => void
 } = {}) {
   const [settings, setSettings] = useState<Map<string, MaterialSetting>>(
     new Map([
-      [tomato.id, {
-        itemId: tomato.id,
-        sourceMode: 'SELF',
-        ownedQuantity: 0,
-      }],
+      [tomato.id, initialSetting],
     ]),
   )
 
@@ -80,7 +82,7 @@ describe('MaterialPriceTable', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('구매 묶음 수량은 0보다 커야 합니다.')
   })
 
-  it('removes purchase-only values when changing to self harvest', () => {
+  it('removes an invalid hidden purchase value when changing to self harvest', () => {
     const onSettingChange = vi.fn()
     render(<MaterialPriceTableHarness onSettingChange={onSettingChange} />)
 
@@ -96,5 +98,37 @@ describe('MaterialPriceTable', () => {
       sourceMode: 'SELF',
       ownedQuantity: 0,
     })
+  })
+
+  it('preserves valid owned and purchase values across a self-harvest round trip', () => {
+    const onSettingChange = vi.fn()
+    const initialSetting: MaterialSetting = {
+      itemId: tomato.id,
+      sourceMode: 'MIXED',
+      ownedQuantity: 7,
+      purchasePackQuantity: 64,
+      purchasePackPrice: 1200,
+      observedAt: '2026-09-18T00:00:00.000Z',
+    }
+    render(
+      <MaterialPriceTableHarness
+        initialSetting={initialSetting}
+        onSettingChange={onSettingChange}
+      />,
+    )
+
+    const source = screen.getByRole('combobox', { name: '토마토 조달 방식' })
+    fireEvent.change(source, { target: { value: 'SELF' } })
+
+    expect(onSettingChange).toHaveBeenLastCalledWith({
+      ...initialSetting,
+      sourceMode: 'SELF',
+    })
+
+    fireEvent.change(source, { target: { value: 'MIXED' } })
+
+    expect(screen.getByRole('spinbutton', { name: '토마토 보유 수량' })).toHaveValue(7)
+    expect(screen.getByRole('spinbutton', { name: '토마토 구매 묶음 수량' })).toHaveValue(64)
+    expect(screen.getByRole('spinbutton', { name: '토마토 구매 묶음 가격' })).toHaveValue(1200)
   })
 })

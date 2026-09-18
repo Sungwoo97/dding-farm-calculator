@@ -10,13 +10,13 @@ type SkillLevel = Skill['levels'][number]
 
 function effectText(level: SkillLevel): string {
   const { effect } = level
+  const percent = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(effect.value * 100)
+  const minimum = effect.minimumQuantity === undefined ? '' : `, ${effect.minimumQuantity}개 이상`
   if (effect.type === 'EXPECTED_EXTRA_OUTPUT') {
-    return `기대 추가 생산량 ${effect.value}개 (${effect.rounding})`
+    return `기대 생산량 +${percent}%${minimum} (${effect.rounding})`
   }
 
-  const percent = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(effect.value * 100)
   if (effect.type === 'BULK_SALE_MULTIPLIER') {
-    const minimum = effect.minimumQuantity ? `, ${effect.minimumQuantity}개 이상` : ''
     return `대량 판매 가격 +${percent}%${minimum} (${effect.rounding})`
   }
   return `판매 가격 +${percent}% (${effect.rounding})`

@@ -28,10 +28,18 @@ function formatUnitPrice(unitPrice: number): string {
 function withSourceMode(setting: MaterialSetting, sourceMode: SourceMode): MaterialSetting {
   const nextSetting = { ...setting, sourceMode }
   if (sourceMode === 'SELF') {
-    nextSetting.ownedQuantity = 0
-    delete nextSetting.purchasePackQuantity
-    delete nextSetting.purchasePackPrice
-    delete nextSetting.observedAt
+    if (
+      nextSetting.purchasePackQuantity !== undefined &&
+      (!Number.isFinite(nextSetting.purchasePackQuantity) || nextSetting.purchasePackQuantity <= 0)
+    ) {
+      delete nextSetting.purchasePackQuantity
+    }
+    if (
+      nextSetting.purchasePackPrice !== undefined &&
+      (!Number.isFinite(nextSetting.purchasePackPrice) || nextSetting.purchasePackPrice < 0)
+    ) {
+      delete nextSetting.purchasePackPrice
+    }
   }
   return nextSetting
 }

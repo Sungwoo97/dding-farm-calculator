@@ -1,10 +1,10 @@
-import { getFixtureCatalog } from '@/features/catalog/server/fixture-catalog'
+import { getPublishedCatalog } from '@/features/catalog/server/repository'
 import { SettingsForm } from '@/features/user-settings/ui/settings-form'
 
-const fixtureTime = new Date('2026-09-17T00:00:00+09:00')
+export const dynamic = 'force-dynamic'
 
-export default function SettingsPage() {
-  const catalog = getFixtureCatalog(fixtureTime)
+export default async function SettingsPage() {
+  const catalog = await getPublishedCatalog(new Date())
 
   return (
     <section>

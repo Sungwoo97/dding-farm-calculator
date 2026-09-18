@@ -1,10 +1,10 @@
-import { getFixtureCatalog } from '@/features/catalog/server/fixture-catalog'
+import { getPublishedCatalog } from '@/features/catalog/server/repository'
 import { MaterialsForm } from '@/features/user-settings/ui/materials-form'
 
-const fixtureTime = new Date('2026-09-17T00:00:00+09:00')
+export const dynamic = 'force-dynamic'
 
-export default function MaterialsPage() {
-  const catalog = getFixtureCatalog(fixtureTime)
+export default async function MaterialsPage() {
+  const catalog = await getPublishedCatalog(new Date())
   const materials = catalog.items.filter((item) => item.tradeable && item.category !== 'DISH')
 
   return (
