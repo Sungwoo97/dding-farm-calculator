@@ -1,6 +1,6 @@
 import type { MaterialSetting } from '@/features/calculator/domain/types'
 
-import { dbPromise } from './db'
+import { getDb } from './db'
 import {
   catalogCacheSchema,
   favoriteSchema,
@@ -36,18 +36,18 @@ export interface UserSettingsRepository {
 
 class IndexedDbUserSettingsRepository implements UserSettingsRepository {
   async loadProfile(): Promise<UserProfile> {
-    const database = await dbPromise
+    const database = await getDb()
     return (await database.get('profile', PROFILE_KEY)) ?? defaultUserProfile
   }
 
   async saveProfile(profile: UserProfile): Promise<void> {
     const validProfile = userProfileSchema.parse(profile)
-    const database = await dbPromise
+    const database = await getDb()
     await database.put('profile', validProfile, PROFILE_KEY)
   }
 
   async listMaterials(): Promise<MaterialSetting[]> {
-    const database = await dbPromise
+    const database = await getDb()
     return (await database.getAll('materials')).sort((left, right) =>
       left.itemId.localeCompare(right.itemId),
     )
@@ -55,12 +55,12 @@ class IndexedDbUserSettingsRepository implements UserSettingsRepository {
 
   async saveMaterial(setting: MaterialSetting): Promise<void> {
     const validSetting = materialSettingSchema.parse(setting)
-    const database = await dbPromise
+    const database = await getDb()
     await database.put('materials', validSetting)
   }
 
   async listFavorites(): Promise<Favorite[]> {
-    const database = await dbPromise
+    const database = await getDb()
     return (await database.getAll('favorites')).sort((left, right) =>
       left.dishItemId.localeCompare(right.dishItemId),
     )
@@ -68,13 +68,13 @@ class IndexedDbUserSettingsRepository implements UserSettingsRepository {
 
   async saveFavorite(favorite: Favorite): Promise<void> {
     const validFavorite = favoriteSchema.parse(favorite)
-    const database = await dbPromise
+    const database = await getDb()
     await database.put('favorites', validFavorite)
   }
 
   async replaceAll(data: UserDataExport): Promise<void> {
     const validData = userDataExportSchema.parse(data)
-    const database = await dbPromise
+    const database = await getDb()
     const transaction = database.transaction(
       ['profile', 'materials', 'favorites', 'catalog_cache'],
       'readwrite',
@@ -114,13 +114,13 @@ class IndexedDbUserSettingsRepository implements UserSettingsRepository {
   }
 
   async getCatalogCache(): Promise<CatalogCache | null> {
-    const database = await dbPromise
+    const database = await getDb()
     return (await database.get('catalog_cache', CATALOG_CACHE_KEY)) ?? null
   }
 
   async setCatalogCache(cache: CatalogCache): Promise<void> {
     const validCache = catalogCacheSchema.parse(cache)
-    const database = await dbPromise
+    const database = await getDb()
     await database.put('catalog_cache', validCache, CATALOG_CACHE_KEY)
   }
 }

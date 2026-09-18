@@ -1,4 +1,4 @@
-import { openDB, type DBSchema } from 'idb'
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
 import type {
   CatalogCache,
@@ -26,11 +26,16 @@ export interface DdingFarmDb extends DBSchema {
   }
 }
 
-export const dbPromise = openDB<DdingFarmDb>('dding-farm', 1, {
-  upgrade(db) {
-    db.createObjectStore('profile')
-    db.createObjectStore('materials', { keyPath: 'itemId' })
-    db.createObjectStore('favorites', { keyPath: 'dishItemId' })
-    db.createObjectStore('catalog_cache')
-  },
-})
+let dbPromise: Promise<IDBPDatabase<DdingFarmDb>> | undefined
+
+export function getDb(): Promise<IDBPDatabase<DdingFarmDb>> {
+  dbPromise ??= openDB<DdingFarmDb>('dding-farm', 1, {
+    upgrade(db) {
+      db.createObjectStore('profile')
+      db.createObjectStore('materials', { keyPath: 'itemId' })
+      db.createObjectStore('favorites', { keyPath: 'dishItemId' })
+      db.createObjectStore('catalog_cache')
+    },
+  })
+  return dbPromise
+}

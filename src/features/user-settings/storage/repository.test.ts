@@ -6,7 +6,7 @@ import {
   createUserSettingsRepository,
   defaultUserProfile,
 } from './repository'
-import { dbPromise } from './db'
+import { getDb } from './db'
 
 const mixedMaterial: MaterialSetting = {
   itemId: 'mushroom',
@@ -51,7 +51,7 @@ describe('UserSettingsRepository', () => {
     })
     await repository.saveMaterial(mixedMaterial)
 
-    const database = await dbPromise
+    const database = await getDb()
     const transaction = database.transaction.bind(database)
     const transactionSpy = vi.spyOn(database, 'transaction').mockImplementation((...arguments_) => {
       const realTransaction = transaction(...arguments_)

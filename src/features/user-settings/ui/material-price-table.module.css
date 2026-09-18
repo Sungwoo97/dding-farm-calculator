@@ -1,0 +1,133 @@
+.tableRegion {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.table caption {
+  padding: 0 0 12px;
+  text-align: left;
+  font-weight: 700;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.table thead {
+  background: #f0ebe4;
+}
+
+.table select,
+.table input {
+  width: 100%;
+  min-width: 112px;
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid #a9a198;
+  border-radius: 8px;
+}
+
+.itemName {
+  min-width: 100px;
+}
+
+.unitPrice {
+  min-width: 150px;
+  font-weight: 700;
+}
+
+.unitPrice [role='alert'] {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 767px) {
+  .tableRegion {
+    overflow: visible;
+  }
+
+  .table,
+  .table tbody {
+    display: block;
+    border: 0;
+    background: transparent;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table caption {
+    display: block;
+  }
+
+  .card {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  .table th,
+  .table td {
+    display: grid;
+    grid-template-columns: minmax(108px, 0.7fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 0;
+    border: 0;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  .table select,
+  .table input {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .itemName {
+    display: block !important;
+    font-size: 1.125rem;
+  }
+
+  .unitPrice [role='alert'] {
+    grid-column: 2;
+  }
+}

@@ -5,7 +5,7 @@ import {
   userSettingsRepository,
 } from './repository'
 import { exportUserData, importUserData } from './export'
-import { dbPromise } from './db'
+import { getDb } from './db'
 import type { UserDataExport } from './schema'
 
 const exportedData = {
@@ -125,7 +125,7 @@ describe('user data transfer', () => {
       },
     } as unknown as UserDataExport
 
-    const database = await dbPromise
+    const database = await getDb()
     const transactionSpy = vi.spyOn(database, 'transaction')
     try {
       await expect(userSettingsRepository.replaceAll(invalidCache)).rejects.toThrow()

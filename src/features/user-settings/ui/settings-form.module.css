@@ -1,0 +1,49 @@
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.skill {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.skill legend {
+  padding: 0 6px;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.skill select {
+  min-height: 44px;
+  max-width: 240px;
+  padding: 8px 10px;
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid #a9a198;
+  border-radius: 8px;
+}
+
+.currentEffect {
+  margin: 0;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.effects {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+@media (max-width: 767px) {
+  .skill select {
+    width: 100%;
+    max-width: none;
+    font-size: 16px;
+  }
+}
